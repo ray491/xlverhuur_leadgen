@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 import os
 import dotenv
-import threading
 import uuid
 import json
 import csv
@@ -55,7 +54,7 @@ contact information. Include businesses both with and without their own website.
 Official sites, directories, marketplaces and public business profiles are valid
 sources. Any publicly listed email provider is allowed, including business domains.
 Stay within the requested service and location; do not switch to unrelated sectors
-to fill a quota. Deduplicate businesses across pages and batches. Extract business
+to fill a quota. Deduplicate businesses across pages. Stop after at most 15 businesses; this is a single batch. Do not perform exhaustive research or replacement rounds. Extract business
 name, email address, telephone number and full business address when available.
 Leave unavailable fields empty; missing email, phone, address or website must not
 exclude a business. Never guess contact details or invent businesses. Only return
@@ -90,17 +89,13 @@ def env_bool(name, default=False):
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-FINAL_LEAD_TARGET = env_int("MARKETPOST_FINAL_LEAD_TARGET", 100)
-LEADS_PER_AGENT_RUN = env_int("MARKETPOST_LEADS_PER_AGENT_RUN", 25)
-REQUIRED_LEAD_COUNT = LEADS_PER_AGENT_RUN
-MIN_LEAD_COUNT = 0
-MIN_FINAL_LEAD_COUNT = FINAL_LEAD_TARGET
-MAX_GENERATION_PASSES = env_int("MARKETPOST_MAX_GENERATION_PASSES", 7)
-ENABLE_SECONDARY_WEBSITE_VERIFICATION = False
-REPLACEMENT_BUFFER_MULTIPLIER = env_int("MARKETPOST_REPLACEMENT_BUFFER_MULTIPLIER", 2)
-REPLACEMENT_BUFFER_EXTRA = env_int("MARKETPOST_REPLACEMENT_BUFFER_EXTRA", 10)
-MAX_CANDIDATES_PER_PASS = env_int("MARKETPOST_MAX_CANDIDATES_PER_PASS", LEADS_PER_AGENT_RUN)
-MAX_EXCLUDED_LEADS = env_int("MARKETPOST_MAX_EXCLUDED_LEADS", 100)
+# One search creates one provider run. Old quota environment variables must not
+# silently restore the former 100-company replacement loop.
+FINAL_LEAD_TARGET = 15
+LEADS_PER_AGENT_RUN = 15
+REQUIRED_LEAD_COUNT = 15
+MAX_CANDIDATES_PER_PASS = 15
+
 EXA_TERMINAL_STATUSES = {
     "complete",
     "completed",
@@ -380,7 +375,6 @@ def get_previous_saved_leads():
             previous_leads = []
             tasks = (
                 Task.query
-                .filter(Task.status.in_(["done", "completed", "incomplete"]))
                 .order_by(Task.updated_at.desc())
                 .all()
             )
@@ -545,22 +539,6 @@ def get_agent_run(run_id):
     return AgentRun.model_validate(sanitize_agent_run_response(response))
 
 
-def poll_agent_run_until_finished(run_id, poll_interval=2000, timeout_ms=3600000):
-    start_time = time.monotonic()
-    poll_interval_sec = poll_interval / 1000
-
-    while True:
-        run = get_agent_run(run_id)
-        status = str(run.status or "").strip().lower()
-        if status in EXA_TERMINAL_STATUSES:
-            return run
-
-        if (time.monotonic() - start_time) * 1000 > timeout_ms:
-            raise TimeoutError(f"Agent run {run_id} did not complete within {timeout_ms}ms")
-
-        time.sleep(poll_interval_sec)
-
-
 def update_task_with_retry(task_id, **values):
     last_error = None
     for attempt in range(5):
@@ -583,241 +561,52 @@ def update_task_with_retry(task_id, **values):
     raise last_error
 
 
-def update_task_progress(task_id, **progress):
-    last_error = None
-    for attempt in range(5):
-        try:
-            task = db.session.get(Task, task_id)
-            if not task:
-                return False
-            current_result = task.result if isinstance(task.result, dict) else {}
-            current_progress = current_result.get("progress")
-            if not isinstance(current_progress, dict):
-                current_progress = {}
-            task.result = {
-                **current_result,
-                "progress": {
-                    **current_progress,
-                    **progress,
-                },
-            }
-            db.session.commit()
-            db.session.remove()
-            return True
-        except OperationalError as error:
-            last_error = error
-            db.session.rollback()
-            db.session.remove()
-            if attempt < 4:
-                time.sleep(0.5 * (attempt + 1))
+def refresh_task_from_exa(task):
+    """Fetch once per HTTP request; no in-process background worker is required."""
+    if task.status in {"done", "completed", "incomplete", "error", "failed", "cancelled"}:
+        return
+    result = task.result if isinstance(task.result, dict) else {}
+    progress = result.get("progress") or {}
+    run_id = result.get("generation_run_id") or progress.get("generation_run_id")
+    if not run_id:
+        task.status = "error"
+        task.error = "This interrupted task has no saved Exa run ID. Start a new search."
+        db.session.commit()
+        return
 
-    raise last_error
+    run = get_agent_run(run_id)
+    run_status = str(getattr(run.status, "value", run.status) or "").strip().lower()
+    if run_status not in EXA_TERMINAL_STATUSES:
+        return
+    if run_status in {"failed", "error", "errored", "cancelled", "canceled"}:
+        task.status = "cancelled" if run_status in {"cancelled", "canceled"} else "error"
+        task.error = f"Exa run {run_id} {run_status}: {getattr(run, 'error', None) or 'no result returned'}"
+        db.session.commit()
+        return
 
-
-def run_generation_verification_pass(task_id, excluded_leads, pass_number, target_lead_count=None, search_query=""):
-    update_task_with_retry(task_id, status='generating')
-    update_task_progress(
-        task_id,
-        phase="generation",
-        pass_number=pass_number,
-        max_generation_passes=MAX_GENERATION_PASSES,
-        current_verified_lead_count=max(0, FINAL_LEAD_TARGET - (target_lead_count or FINAL_LEAD_TARGET)),
-        minimum_final_lead_count=MIN_FINAL_LEAD_COUNT,
-        target_lead_count=target_lead_count or min(FINAL_LEAD_TARGET, LEADS_PER_AGENT_RUN),
-    )
-    run = create_agent_run(build_generation_query(excluded_leads, target_lead_count=target_lead_count, search_query=search_query))
-    update_task_progress(
-        task_id,
-        phase="generation",
-        pass_number=pass_number,
-        generation_run_id=run.id,
-    )
-    completed_run = poll_agent_run_until_finished(run.id)
-    raw_result = None
-    exa_text = ""
-    if completed_run and completed_run.output:
-        exa_text = exa_output_to_text(completed_run.output)
-        try:
-            raw_result = make_json_safe(completed_run.output.structured)
-        except Exception:
-            raw_result = exa_text
-
-    update_task_with_retry(task_id, status='parsing')
-
-    candidate_result = convert_exa_output_to_result(
-        exa_text,
-        min_count=0,
-        limit=REQUIRED_LEAD_COUNT,
-    )
-
-    return {
-        "candidate_leads": candidate_result["leads"],
-        "verified_leads": candidate_result["leads"],
-        "raw_exa_output": raw_result,
-        "raw_verification_output": None,
-        "agent_run_count": 1,
-    }
-
-
-def run_exa_task(task_id, search_query):
-    with app.app_context():
-        final_leads = []
-        raw_generation_outputs = []
-        raw_verification_outputs = []
-        candidate_lead_count = 0
-        verified_lead_count = 0
-        agent_run_count = 0
-        reused_lead_count = 0
-        duplicate_lead_count = 0
-        pass_number = 1
-        completed_pass_count = 0
-        stopped_before_minimum_reason = None
-        no_new_lead_pass_count = 0
-        pass_summaries = []
-        all_previous_leads = []
-        previous_leads = []
-
-        try:
-            update_task_with_retry(task_id, status='running', error=None)
-            all_previous_leads = []  # Each search is independent of earlier searches.
-            previous_leads = all_previous_leads[-MAX_EXCLUDED_LEADS:]
-            db.session.remove()
-
-            while len(final_leads) < MIN_FINAL_LEAD_COUNT and pass_number <= MAX_GENERATION_PASSES:
-                lead_count_before_pass = len(final_leads)
-                excluded_leads = previous_leads + final_leads
-                needed_lead_count = None
-                if pass_number > 1:
-                    needed_lead_count = MIN_FINAL_LEAD_COUNT - len(final_leads)
-                pass_result = None
-                pass_error = None
-                try:
-                    pass_result = run_generation_verification_pass(
-                        task_id,
-                        excluded_leads,
-                        pass_number,
-                        target_lead_count=needed_lead_count,
-                        search_query=search_query,
-                    )
-                except Exception as pass_exc:
-                    pass_error = pass_exc
-                    app.logger.warning("Pass %d failed: %s", pass_number, pass_exc)
-                    raw_generation_outputs.append({"error": str(pass_exc)})
-                    raw_verification_outputs.append(None)
-                    pass_number += 1
-                    continue
-                raw_generation_outputs.append(pass_result["raw_exa_output"])
-                raw_verification_outputs.append(pass_result["raw_verification_output"])
-                candidate_lead_count += len(pass_result["candidate_leads"])
-                verified_lead_count += len(pass_result["verified_leads"])
-                agent_run_count += pass_result["agent_run_count"]
-
-                update_task_with_retry(task_id, status='deduplicating')
-
-                unique_leads, pass_reused_count, pass_duplicate_count = filter_reused_leads(
-                    pass_result["verified_leads"],
-                    previous_leads + final_leads,
-                )
-                if needed_lead_count is not None:
-                    unique_leads = unique_leads[:needed_lead_count]
-                    # Ensure we don't exceed 100 leads even after replacement
-                    if len(final_leads) + len(unique_leads) > 100:
-                        unique_leads = unique_leads[:(100 - len(final_leads))]
-                final_leads.extend(unique_leads)
-                reused_lead_count += pass_reused_count
-                duplicate_lead_count += pass_duplicate_count
-                pass_unique_count = len(unique_leads)
-                pass_summaries.append({
-                    "pass_number": pass_number,
-                    "candidate_lead_count": len(pass_result["candidate_leads"]),
-                    "verified_lead_count": len(pass_result["verified_leads"]),
-                    "retained_new_lead_count": pass_unique_count,
-                    "removed_reused_lead_count": pass_reused_count,
-                    "removed_duplicate_lead_count": pass_duplicate_count,
-                    "total_retained_lead_count": len(final_leads),
-                })
-                update_task_progress(
-                    task_id,
-                    phase="minimum_fill",
-                    pass_number=pass_number,
-                    max_generation_passes=MAX_GENERATION_PASSES,
-                    current_verified_lead_count=len(final_leads),
-                    minimum_final_lead_count=MIN_FINAL_LEAD_COUNT,
-                    pass_candidate_lead_count=len(pass_result["candidate_leads"]),
-                    pass_verified_lead_count=len(pass_result["verified_leads"]),
-                    pass_retained_new_lead_count=pass_unique_count,
-                    pass_removed_reused_lead_count=pass_reused_count,
-                    pass_removed_duplicate_lead_count=pass_duplicate_count,
-                )
-                completed_pass_count = pass_number
-                if len(final_leads) == lead_count_before_pass:
-                    no_new_lead_pass_count += 1
-                else:
-                    no_new_lead_pass_count = 0
-                if no_new_lead_pass_count >= 2:
-                    app.logger.info("Stopping early: %d consecutive passes with no new leads", no_new_lead_pass_count)
-                    stopped_before_minimum_reason = f"no new leads found in {no_new_lead_pass_count} consecutive passes"
-                    break
-                pass_number += 1
-
-            target_reached = len(final_leads) >= MIN_FINAL_LEAD_COUNT
-            if not target_reached and not stopped_before_minimum_reason:
-                stopped_before_minimum_reason = f"maximum generation passes reached ({MAX_GENERATION_PASSES})"
-                
-            final_result = {"leads": final_leads, "csv": leads_to_csv(final_leads),
-                            "search_query": search_query}
-            # Small or empty searches are valid. Failed provider passes remain incomplete.
-            search_completed = completed_pass_count > 0 and pass_error is None
-
-            update_task_with_retry(task_id, status='done' if search_completed else 'incomplete', result={
-                **final_result,
-                "candidate_lead_count": candidate_lead_count,
-                "verified_lead_count": verified_lead_count,
-                "previous_saved_lead_count": len(all_previous_leads),
-                "excluded_lead_count": len(previous_leads),
-                "removed_reused_lead_count": reused_lead_count,
-                "removed_duplicate_lead_count": duplicate_lead_count,
-                "generation_pass_count": completed_pass_count,
-                "agent_run_count": agent_run_count,
-                "pass_summaries": pass_summaries,
-                "secondary_website_verification_enabled": ENABLE_SECONDARY_WEBSITE_VERIFICATION,
-                "no_new_lead_pass_count": no_new_lead_pass_count,
-                "minimum_final_lead_count": MIN_FINAL_LEAD_COUNT,
-                "final_lead_target": FINAL_LEAD_TARGET,
-                "leads_per_agent_run": LEADS_PER_AGENT_RUN,
-                "max_generation_passes": MAX_GENERATION_PASSES,
-                "minimum_reached": target_reached,
-                "target_reached": target_reached,
-                "stopped_before_minimum_reason": stopped_before_minimum_reason,
-                "raw_exa_output": raw_generation_outputs,
-                "raw_verification_output": raw_verification_outputs,
-            })
-        except Exception as e:
-            db.session.rollback()
-            db.session.remove()
-            try:
-                if final_leads:
-                    partial_result = {
-                        "leads": final_leads,
-                        "csv": leads_to_csv(final_leads),
-                        "candidate_lead_count": candidate_lead_count,
-                        "verified_lead_count": verified_lead_count,
-                        "previous_saved_lead_count": len(all_previous_leads),
-                        "excluded_lead_count": len(previous_leads),
-                        "removed_reused_lead_count": reused_lead_count,
-                        "removed_duplicate_lead_count": duplicate_lead_count,
-                        "generation_pass_count": completed_pass_count,
-                        "agent_run_count": agent_run_count,
-                        "pass_summaries": pass_summaries,
-                        "stopped_before_minimum_reason": f"generation failed midway: {e}",
-                        "minimum_reached": False,
-                        "target_reached": False,
-                    }
-                    update_task_with_retry(task_id, status='incomplete', result=partial_result, error=str(e))
-                else:
-                    update_task_with_retry(task_id, status='error', error=str(e))
-            except Exception:
-                app.logger.exception("Failed to persist task error for %s", task_id)
+    try:
+        # Preserve all already-paid-for rows when recovering an older 25-row run.
+        limit = result.get("lead_limit")
+        parsed = convert_exa_output_to_result(exa_output_to_text(run.output), min_count=0, limit=None)
+        leads, _, duplicates = filter_reused_leads(parsed["leads"], [])
+        if isinstance(limit, int) and limit > 0:
+            leads = leads[:limit]
+        task.result = {
+            **result,
+            "leads": leads,
+            "csv": leads_to_csv(leads),
+            "generation_run_id": run_id,
+            "generation_pass_count": 1,
+            "agent_run_count": 1,
+            "removed_duplicate_lead_count": duplicates,
+            "progress": {"phase": "completed"},
+        }
+        task.status = "done"
+        task.error = None
+    except ValueError as error:
+        task.status = "error"
+        task.error = f"Exa completed, but its result could not be read: {error}"
+    db.session.commit()
 
 
 def task_to_history_item(task):
@@ -855,7 +644,6 @@ def get_history_tasks_with_retry(limit, attempts=3, delay=0.25):
         try:
             return (
                 Task.query
-                .filter(Task.status.in_(["done", "completed", "incomplete"]))
                 .order_by(Task.updated_at.desc())
                 .limit(limit)
                 .all()
@@ -880,12 +668,26 @@ def generate():
     if len(search_query) > 500:
         return jsonify({"error": "Search term must be at most 500 characters."}), 400
     task_id = str(uuid.uuid4())
-    task = Task(id=task_id, status='pending', result={'search_query': search_query})
+    task = Task(id=task_id, status='pending', result={
+        'search_query': search_query, 'lead_limit': REQUIRED_LEAD_COUNT,
+    })
     db.session.add(task)
     db.session.commit()
 
-    thread = threading.Thread(target=run_exa_task, args=(task_id, search_query), daemon=True)
-    thread.start()
+    try:
+        run = create_agent_run(build_generation_query([], search_query=search_query))
+        # Persist before responding, so a later request or process can finish it.
+        update_task_with_retry(task_id, status='generating', result={
+            'search_query': search_query,
+            'lead_limit': REQUIRED_LEAD_COUNT,
+            'generation_run_id': run.id,
+            'progress': {'phase': 'generation', 'generation_run_id': run.id},
+        })
+    except Exception as error:
+        app.logger.exception("Failed to start Exa run for %s", task_id)
+        db.session.rollback()
+        update_task_with_retry(task_id, status='error', error=str(error))
+        return jsonify({'error': 'Could not start the search. Check the run history for details.'}), 502
 
     return jsonify({"task_id": task_id}), 202
 
@@ -916,6 +718,12 @@ def status(task_id):
 
     if not task:
         return jsonify({"error": "task not found"}), 404
+    try:
+        refresh_task_from_exa(task)
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Unable to refresh Exa run for %s", task_id)
+        return jsonify({"status": "retrying", "error": "Could not check Exa yet. Retrying the same run."}), 503
     return jsonify({"status": task.status, "result": task.result, "error": task.error}), 200
 
 

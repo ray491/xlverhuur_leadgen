@@ -15,15 +15,10 @@ The search provider is Exa. This implementation does **not** directly fetch Goog
 
 Install `requirements.txt`, configure `EXA_API_KEY` and `DATABASE_URL` (Postgres), then run `python app.py`. The application creates its task table on startup. Completed searches are saved in the database.
 
-Existing environment variable names are retained for deployment compatibility:
+Each search creates exactly one Exa Agent run requesting at most 15 businesses. Fewer results (including zero) are valid. The old quota/batch environment variables are ignored.
 
-```env
-MARKETPOST_FINAL_LEAD_TARGET=100
-MARKETPOST_LEADS_PER_AGENT_RUN=25
-MARKETPOST_MAX_GENERATION_PASSES=7
-MARKETPOST_MAX_CANDIDATES_PER_PASS=25
-```
+The app saves the Exa run ID before returning from `/generate`. Each `/status` request checks that same run once and saves its result when complete. No daemon thread or hour-long HTTP request is required. Failed status checks never launch replacement runs.
 
-Website verification is removed and the old secondary-verification setting is ignored. Each batch uses one paid Exa Agent run; actual usage depends on research performed.
+Active searches appear in history. Open one to resume polling after a reload or deployment; older tasks with an ID stored in `progress.generation_run_id` are also recoverable, retaining all their results. Tasks without a saved provider ID cannot be automatically recovered.
 
 `POST /generate` requires a JSON body such as `{"query":"Kraan huren"}`. Search terms must contain 1–500 characters. The response contains the task ID; poll `/status/<task_id>` and use `/history` for saved runs.

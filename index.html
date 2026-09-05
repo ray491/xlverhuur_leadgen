@@ -872,25 +872,9 @@
         const result = data.result && typeof data.result === 'object' ? data.result : {};
         const progress = result.progress && typeof result.progress === 'object' ? result.progress : {};
 
-        if (progress.phase === 'minimum_fill') {
-          const passText = progress.pass_number
-            ? `Pass ${progress.pass_number}${progress.max_generation_passes ? `/${progress.max_generation_passes}` : ''} complete`
-            : 'Pass complete';
-          const retainedText = `${progress.pass_retained_new_lead_count || 0} new retained from ${progress.pass_candidate_lead_count || 0} candidates`;
-          const removedParts = [];
-          if (progress.pass_removed_reused_lead_count) removedParts.push(`${progress.pass_removed_reused_lead_count} reused`);
-          if (progress.pass_removed_duplicate_lead_count) removedParts.push(`${progress.pass_removed_duplicate_lead_count} duplicate`);
-          const removedText = removedParts.length ? `, ${removedParts.join(', ')} removed` : '';
-          return `${passText}: ${retainedText}${removedText}. Total ${progress.current_verified_lead_count || 0}/${progress.minimum_final_lead_count || 100}.`;
-        }
-        if (progress.phase === 'generation') {
-          const passText = progress.pass_number
-            ? `pass ${progress.pass_number}${progress.max_generation_passes ? `/${progress.max_generation_passes}` : ''}`
-            : 'next pass';
-          return `Starting Exa generation ${passText}; current total ${progress.current_verified_lead_count || 0}/${progress.minimum_final_lead_count || 100}...`;
-        }
-        if (progress.phase === 'verification') {
-          return `Verifying websites${progress.pass_number ? `, pass ${progress.pass_number}` : ''}...`;
+        if (status === 'done' || status === 'completed') return 'Search complete.';
+        if (progress.phase === 'generation' || ['pending', 'generating', 'running'].includes(status)) {
+          return 'Searching web pages for up to 15 companies…';
         }
         return 'Status: ' + status;
       }
@@ -1182,7 +1166,7 @@
       function createRunItemHtml(run) {
         return '<li class="run-item">'
           + '<div class="meta">'
-          + '<strong>' + (run.lead_count || 0) + ' leads</strong>'
+          + '<strong>' + (terminalStatuses.has(run.status) ? (run.lead_count || 0) + ' leads' : 'Search in progress') + '</strong>'
           + '<span class="muted">' + escapeHtml(formatTime(run.updated_at || run.created_at)) + ' | ' + escapeHtml(run.id) + '</span>'
           + '</div>'
           + '<button class="btn btn-icon" type="button" title="View run" aria-label="View run ' + escapeHtml(run.id) + '" data-run-id="' + escapeHtml(run.id) + '">'
@@ -1205,12 +1189,34 @@
       }
 
       async function loadRun(taskId) {
-        const resp = await fetch('/status/' + taskId);
-        if (!resp.ok) throw new Error('Failed to load previous run');
-        const data = await resp.json();
-        if (!data.result) throw new Error(data.error || 'Previous run has no result');
-        setStatus('Loaded previous run.', 'success');
-        renderResult(data.result);
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = null;
+        let checking = false;
+        const refresh = async () => {
+          if (checking) return;
+          checking = true;
+          try {
+            const resp = await fetch('/status/' + taskId);
+            if (!resp.ok) throw new Error('Could not check this run. Retrying…');
+            const data = await resp.json();
+            const finished = terminalStatuses.has(data.status);
+            setStatus(data.error || getTaskStatusMessage(data), finished ? (data.status === 'done' ? 'success' : 'error') : 'running');
+            if (finished) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+              btn.disabled = false;
+              if (data.result && (data.result.leads || data.result.csv)) renderResult(data.result);
+              loadHistory();
+            }
+          } catch (error) {
+            setStatus(error.message, 'running');
+          } finally {
+            checking = false;
+          }
+        };
+        btn.disabled = true;
+        pollInterval = setInterval(refresh, 4000);
+        await refresh();
       }
 
       async function loadHistory() {
@@ -1389,12 +1395,12 @@
                 if (status === 'done' || status === 'completed' || status === 'incomplete') {
                   if (!j.result) throw new Error('Task completed without a result.');
                   renderResult(j.result);
-                  if (status === 'incomplete' || j.result.minimum_reached === false) {
+                  if (status === 'incomplete') {
                     const leadCount = Array.isArray(j.result.leads) ? j.result.leads.length : 0;
                     setStatus(`Partial: ${leadCount} leads collected. ${j.result.stopped_before_minimum_reason || 'Target was not reached.'}`, 'success');
                     showNotification('Lead Generation Partial', `${leadCount} leads collected. ${j.result.stopped_before_minimum_reason || 'Target was not reached.'}`);
                   } else {
-                    const leadCount = Array.isArray(j.result.leads) ? j.result.leads.length : 100;
+                    const leadCount = Array.isArray(j.result.leads) ? j.result.leads.length : 0;
                     setStatus(`Done with ${leadCount} leads.`, 'success');
                     showNotification('Lead Generation Complete', `${leadCount} leads ready.`);
                   }

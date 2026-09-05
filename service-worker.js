@@ -1,4 +1,4 @@
-const CACHE_NAME = 'xlverhuur_leadfinder-shell-v3';
+const CACHE_NAME = 'xlverhuur_leadfinder-shell-v4';
 const APP_SHELL_URLS = [
   '/',
   '/manifest.webmanifest',
