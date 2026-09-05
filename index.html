@@ -1,0 +1,1433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>xlverhuur_leadfinder</title>
+    <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="application-name" content="xlverhuur_leadfinder" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="xlverhuur_leadfinder" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/app-icon-192.png" />
+    <link rel="icon" href="/icons/app-icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="https://use.hugeicons.com/font/icons.css" />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem('marketpost-theme');
+        if (savedTheme === 'dark') {
+          document.documentElement.dataset.theme = 'dark';
+        }
+        if (localStorage.getItem('marketpost-perf') === 'low-end') {
+          document.documentElement.classList.add('low-end');
+        }
+      } catch (err) {
+        document.documentElement.dataset.theme = '';
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f5f7;
+        --panel: #ffffff;
+        --panel-soft: #fbfbfd;
+        --toolbar-bg: rgba(245, 245, 247, 0.78);
+        --header-bg: rgba(251, 251, 253, 0.96);
+        --text: #1d1d1f;
+        --cell-text: #2f2f32;
+        --muted: #6e6e73;
+        --line: rgba(0, 0, 0, 0.1);
+        --line-soft: rgba(0, 0, 0, 0.06);
+        --blue: #0071e3;
+        --blue-hover: #0077ed;
+        --button-bg: rgba(0, 113, 227, 0.08);
+        --button-hover: rgba(0, 113, 227, 0.13);
+        --row-hover: rgba(0, 113, 227, 0.035);
+        --green: #248a3d;
+        --red: #d70015;
+        --radius: 8px;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      }
+
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #000000;
+        --panel: #1d1d1f;
+        --panel-soft: #2c2c2e;
+        --toolbar-bg: rgba(0, 0, 0, 0.76);
+        --header-bg: rgba(29, 29, 31, 0.96);
+        --text: #f5f5f7;
+        --cell-text: #e6e6eb;
+        --muted: #a1a1a6;
+        --line: rgba(255, 255, 255, 0.12);
+        --line-soft: rgba(255, 255, 255, 0.08);
+        --blue: #0a84ff;
+        --blue-hover: #409cff;
+        --button-bg: rgba(10, 132, 255, 0.14);
+        --button-hover: rgba(10, 132, 255, 0.22);
+        --row-hover: rgba(10, 132, 255, 0.1);
+        --green: #30d158;
+        --red: #ff453a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        letter-spacing: 0;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .app {
+        width: 100%;
+        margin: 0;
+        padding: 18px;
+      }
+
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        margin: -18px -18px 14px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--toolbar-bg);
+        backdrop-filter: blur(18px) saturate(180%);
+        -webkit-backdrop-filter: blur(18px) saturate(180%);
+      }
+
+      .toolbar-title {
+        min-width: 0;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.2;
+        font-weight: 700;
+      }
+
+      #status {
+        margin: 4px 0 0;
+        max-width: 74ch;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      #status.is-running {
+        color: var(--blue);
+      }
+
+      #status.is-success {
+        color: var(--green);
+      }
+
+      #status.is-error {
+        color: var(--red);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto;
+      }
+
+      .btn {
+        min-height: 40px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: var(--blue);
+        background: var(--button-bg);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 650;
+        white-space: nowrap;
+        transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+      }
+
+      .btn:hover:not(:disabled) {
+        background: var(--button-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn:focus-visible {
+        outline: 3px solid rgba(0, 113, 227, 0.28);
+        outline-offset: 3px;
+      }
+
+      .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+        transform: none;
+      }
+
+      .btn.hidden {
+        display: none;
+      }
+
+      .btn-primary {
+        color: #ffffff;
+        background: var(--blue);
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: var(--blue-hover);
+      }
+
+      .icon {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--line-soft);
+        border-radius: var(--radius);
+        background: var(--panel);
+        contain: layout style;
+      }
+
+      .panel-head {
+        min-height: 58px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.25;
+        font-weight: 700;
+      }
+
+      #csvMeta,
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+
+      #csvMeta {
+        text-align: right;
+      }
+
+      .panel-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .filters {
+        padding: 12px 18px;
+        display: grid;
+        grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(150px, 1fr)) auto;
+        gap: 10px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--panel-soft);
+      }
+
+      .field {
+        min-width: 0;
+        display: grid;
+        gap: 5px;
+      }
+
+      .field label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0 11px;
+        color: var(--text);
+        background: var(--panel);
+        font: inherit;
+        font-size: 13px;
+      }
+
+      .field input:focus,
+      .field select:focus {
+        outline: 3px solid rgba(0, 113, 227, 0.2);
+        outline-offset: 1px;
+        border-color: var(--blue);
+      }
+
+      .filter-reset {
+        align-self: end;
+      }
+
+      #history {
+        margin: 0;
+        padding: 8px;
+        list-style: none;
+        display: grid;
+        gap: 8px;
+        max-width: 100%;
+        max-height: 360px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scroll-padding: 8px;
+      }
+
+      #history > .muted {
+        padding: 10px;
+      }
+
+      .history-folder {
+        display: grid;
+        gap: 4px;
+      }
+
+      .folder-toggle {
+        width: 100%;
+        min-height: 42px;
+        border: 0;
+        border-radius: var(--radius);
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--text);
+        background: transparent;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+
+      .folder-toggle:hover {
+        background: var(--panel-soft);
+      }
+
+      .folder-toggle:focus-visible {
+        outline: 3px solid rgba(0, 113, 227, 0.2);
+        outline-offset: 2px;
+      }
+
+      .folder-label {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+      }
+
+      .folder-count {
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .folder-runs {
+        margin: 0;
+        padding: 0 0 0 28px;
+        list-style: none;
+        display: grid;
+        gap: 2px;
+      }
+
+      .folder-runs.is-collapsed {
+        display: none;
+      }
+
+      .run-item {
+        width: 100%;
+        min-height: 64px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-radius: var(--radius);
+        background: transparent;
+      }
+
+      .run-item:hover {
+        background: var(--panel-soft);
+      }
+
+      #history .meta {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+      }
+
+      #history strong {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+
+      #history .muted {
+        overflow-wrap: anywhere;
+      }
+
+      .btn-icon {
+        width: 38px;
+        min-height: 38px;
+        padding: 0;
+      }
+
+      .results-panel {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .table-wrap {
+        width: 100%;
+        min-height: calc(100vh - 232px);
+        background: var(--panel);
+        contain: layout style;
+      }
+
+      #csvViewer {
+        width: 100%;
+        max-height: calc(100vh - 232px);
+        overflow: auto;
+        contain: layout style;
+        content-visibility: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 1120px;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 11px 13px;
+        border-bottom: 1px solid var(--line-soft);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--header-bg);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      td {
+        max-width: 360px;
+        color: var(--cell-text);
+        line-height: 1.45;
+      }
+
+      tr:hover td {
+        background: var(--row-hover);
+      }
+
+      tbody tr {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 44px;
+      }
+
+      .empty-state {
+        min-height: calc(100vh - 232px);
+        padding: 30px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .empty-state strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text);
+        font-size: 16px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .perf-slider {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .perf-slider-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .perf-slider-track {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        border-radius: 11px;
+        background: var(--line);
+        transition: background 200ms ease;
+        flex-shrink: 0;
+      }
+
+      .perf-slider-thumb {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: transform 200ms ease;
+      }
+
+      .perf-slider-input:checked + .perf-slider-track {
+        background: var(--blue);
+      }
+
+      .perf-slider-input:checked + .perf-slider-track .perf-slider-thumb {
+        transform: translateX(18px);
+      }
+
+      .perf-slider-input:focus-visible + .perf-slider-track {
+        outline: 3px solid rgba(0, 113, 227, 0.28);
+        outline-offset: 2px;
+      }
+
+      .perf-slider-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      html.low-end .toolbar {
+        background: var(--header-bg);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        contain: layout style;
+      }
+
+      html.low-end .btn {
+        transition: background 120ms ease, opacity 120ms ease;
+        will-change: auto;
+      }
+
+      html.low-end .btn:hover:not(:disabled) {
+        transform: none;
+      }
+
+      html.low-end th {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        contain: layout style;
+      }
+
+      html.low-end tbody tr {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 44px;
+      }
+
+      html.low-end #csvViewer {
+        contain: layout style;
+        content-visibility: auto;
+      }
+
+      @media (max-width: 860px) {
+        .app {
+          padding: 12px;
+        }
+
+        .toolbar {
+          margin: -12px -12px 12px;
+          padding: 12px;
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .actions {
+          width: 100%;
+          flex-wrap: wrap;
+        }
+
+        .actions .btn {
+          flex: 1 1 0;
+        }
+
+        #history,
+        #csvViewer,
+        .table-wrap,
+        .empty-state {
+          min-height: 320px;
+        }
+
+        #history {
+          max-height: 240px;
+        }
+
+        #csvMeta {
+          text-align: left;
+        }
+
+        .panel-actions {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .actions {
+          flex-direction: column;
+        }
+
+        .actions .btn {
+          width: 100%;
+        }
+
+        .panel-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .filters {
+          grid-template-columns: 1fr;
+          padding: 12px;
+        }
+
+        .filter-reset {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.001ms !important;
+          animation-duration: 0.001ms !important;
+        }
+
+        tbody tr {
+          content-visibility: visible;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="toolbar">
+        <div class="toolbar-title">
+          <h1>xlverhuur_leadfinder</h1>
+          <p id="status">Ready.</p>
+        </div>
+        <div class="actions">
+          <button id="refreshHistory" class="btn" type="button">
+            <i class="icon hgi-stroke hgi-refresh-01" aria-hidden="true"></i>
+            Refresh Runs
+          </button>
+          <button id="themeToggle" class="btn" type="button" aria-pressed="false">
+            <i id="themeToggleIcon" class="icon hgi-stroke hgi-dark-mode" aria-hidden="true"></i>
+            <span id="themeToggleText">Dark Mode</span>
+          </button>
+          <label class="perf-slider" title="Toggle low-end mode for slower devices">
+            <span class="perf-slider-label" id="perfLabelLeft">Normal</span>
+            <input type="checkbox" id="perfToggle" class="perf-slider-input" />
+            <span class="perf-slider-track"><span class="perf-slider-thumb"></span></span>
+            <span class="perf-slider-label" id="perfLabelRight">Low-end</span>
+          </label>
+          <button id="installApp" class="btn hidden" type="button">
+            <i class="icon hgi-stroke hgi-download-04" aria-hidden="true"></i>
+            Install
+          </button>
+          <div class="field">
+            <label for="searchQuery">Search term</label>
+            <input id="searchQuery" type="search" placeholder="Kraan huren" maxlength="500" required />
+          </div>
+          <button id="gen" class="btn btn-primary" type="button">
+            <i class="icon hgi-stroke hgi-play" aria-hidden="true"></i>
+            Find Contacts
+          </button>
+        </div>
+      </header>
+
+      <section class="layout" aria-label="Lead workspace">
+        <aside class="panel" aria-labelledby="history-title">
+          <div class="panel-head">
+            <h2 id="history-title">Previous Runs</h2>
+          </div>
+          <ul id="history"></ul>
+        </aside>
+
+        <section class="panel results-panel" aria-labelledby="results-title">
+          <div class="panel-head">
+            <h2 id="results-title">Lead Results</h2>
+            <div class="panel-actions">
+              <div id="csvMeta" class="muted">No leads loaded.</div>
+              <button id="downloadExcel" class="btn" type="button" disabled>
+                <i class="icon hgi-stroke hgi-file-download" aria-hidden="true"></i>
+                CSV
+              </button>
+            </div>
+          </div>
+          <div id="filters" class="filters hidden" aria-label="Lead filters">
+            <div class="field">
+              <label for="filterSearch">Search</label>
+              <input id="filterSearch" type="search" placeholder="Business, city, email, phone..." autocomplete="off" />
+            </div>
+            <div class="field hidden">
+              <label for="filterCategory">Service</label>
+              <select id="filterCategory">
+                <option value="">All services</option>
+              </select>
+            </div>
+            <div class="field hidden">
+              <label for="filterProvince">Province</label>
+              <select id="filterProvince">
+                <option value="">All provinces</option>
+              </select>
+            </div>
+            <div class="field hidden">
+              <label for="filterTier">Tier</label>
+              <select id="filterTier">
+                <option value="">All tiers</option>
+              </select>
+            </div>
+            <button id="resetFilters" class="btn filter-reset" type="button">
+              <i class="icon hgi-stroke hgi-filter-remove" aria-hidden="true"></i>
+              Clear
+            </button>
+          </div>
+          <div class="table-wrap">
+            <div id="emptyState" class="empty-state">
+              <div>
+                <strong>No results yet</strong>
+                Generate leads or open a previous run.
+              </div>
+            </div>
+            <div id="csvViewer" class="hidden"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const btn = document.getElementById('gen');
+      const refreshHistoryBtn = document.getElementById('refreshHistory');
+      const themeToggleBtn = document.getElementById('themeToggle');
+      const themeToggleIconEl = document.getElementById('themeToggleIcon');
+      const themeToggleTextEl = document.getElementById('themeToggleText');
+      const perfToggle = document.getElementById('perfToggle');
+      const perfLabelLeft = document.getElementById('perfLabelLeft');
+      const perfLabelRight = document.getElementById('perfLabelRight');
+      const installAppBtn = document.getElementById('installApp');
+      const statusEl = document.getElementById('status');
+      const historyEl = document.getElementById('history');
+      const csvMetaEl = document.getElementById('csvMeta');
+      const csvViewerEl = document.getElementById('csvViewer');
+      const emptyStateEl = document.getElementById('emptyState');
+      const filtersEl = document.getElementById('filters');
+      const filterSearchEl = document.getElementById('filterSearch');
+      const filterCategoryEl = document.getElementById('filterCategory');
+      const filterProvinceEl = document.getElementById('filterProvince');
+      const filterTierEl = document.getElementById('filterTier');
+      const resetFiltersBtn = document.getElementById('resetFilters');
+      const downloadExcelBtn = document.getElementById('downloadExcel');
+      let pollInterval = null;
+      let pollInFlight = false;
+      let pollErrorCount = 0;
+      let currentRows = [];
+      let currentVisibleRows = [];
+      let deferredInstallPrompt = null;
+      const terminalStatuses = new Set(['done', 'completed', 'incomplete', 'error', 'failed', 'cancelled']);
+      const columns = ['Business name', 'Public email', 'Public phone', 'Address'];
+
+      function applyTheme(theme) {
+        const isDark = theme === 'dark';
+        document.documentElement.dataset.theme = isDark ? 'dark' : '';
+        themeToggleBtn.setAttribute('aria-pressed', String(isDark));
+        themeToggleIconEl.className = `icon hgi-stroke ${isDark ? 'hgi-sun-03' : 'hgi-dark-mode'}`;
+        themeToggleTextEl.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+        try {
+          localStorage.setItem('marketpost-theme', isDark ? 'dark' : 'light');
+        } catch (err) {
+          // Theme still applies for the current page even when storage is unavailable.
+        }
+      }
+
+      function getCurrentTheme() {
+        return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+      }
+
+      function applyPerfMode(lowEnd) {
+        document.documentElement.classList.toggle('low-end', lowEnd);
+        perfToggle.checked = lowEnd;
+        perfLabelLeft.style.color = lowEnd ? 'var(--muted)' : 'var(--text)';
+        perfLabelRight.style.color = lowEnd ? 'var(--text)' : 'var(--muted)';
+        try {
+          localStorage.setItem('marketpost-perf', lowEnd ? 'low-end' : 'normal');
+        } catch (err) {}
+      }
+
+      function isStandaloneApp() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      }
+
+      function requestNotificationPermission() {
+        if (!('Notification' in window)) return Promise.resolve('denied');
+        if (Notification.permission === 'granted' || Notification.permission === 'denied') {
+          return Promise.resolve(Notification.permission);
+        }
+        return Notification.requestPermission();
+      }
+
+      function showNotification(title, body) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then(reg => reg.showNotification(title, { body, icon: '/icons/app-icon.svg', badge: '/icons/app-icon.svg' }));
+        } else {
+          new Notification(title, { body, icon: '/icons/app-icon.svg' });
+        }
+      }
+
+      function updateInstallButton() {
+        installAppBtn.classList.toggle('hidden', isStandaloneApp() || !deferredInstallPrompt);
+      }
+
+      function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js').catch(() => {
+            // The app remains usable when service worker registration is unavailable.
+          });
+        });
+      }
+
+      function setStatus(message, tone = 'idle') {
+        statusEl.textContent = message;
+        statusEl.classList.remove('is-running', 'is-success', 'is-error');
+        if (tone === 'running') statusEl.classList.add('is-running');
+        if (tone === 'success') statusEl.classList.add('is-success');
+        if (tone === 'error') statusEl.classList.add('is-error');
+      }
+
+      function getTaskStatusMessage(data) {
+        const status = String(data.status || 'unknown').trim();
+        const result = data.result && typeof data.result === 'object' ? data.result : {};
+        const progress = result.progress && typeof result.progress === 'object' ? result.progress : {};
+
+        if (progress.phase === 'minimum_fill') {
+          const passText = progress.pass_number
+            ? `Pass ${progress.pass_number}${progress.max_generation_passes ? `/${progress.max_generation_passes}` : ''} complete`
+            : 'Pass complete';
+          const retainedText = `${progress.pass_retained_new_lead_count || 0} new retained from ${progress.pass_candidate_lead_count || 0} candidates`;
+          const removedParts = [];
+          if (progress.pass_removed_reused_lead_count) removedParts.push(`${progress.pass_removed_reused_lead_count} reused`);
+          if (progress.pass_removed_duplicate_lead_count) removedParts.push(`${progress.pass_removed_duplicate_lead_count} duplicate`);
+          const removedText = removedParts.length ? `, ${removedParts.join(', ')} removed` : '';
+          return `${passText}: ${retainedText}${removedText}. Total ${progress.current_verified_lead_count || 0}/${progress.minimum_final_lead_count || 100}.`;
+        }
+        if (progress.phase === 'generation') {
+          const passText = progress.pass_number
+            ? `pass ${progress.pass_number}${progress.max_generation_passes ? `/${progress.max_generation_passes}` : ''}`
+            : 'next pass';
+          return `Starting Exa generation ${passText}; current total ${progress.current_verified_lead_count || 0}/${progress.minimum_final_lead_count || 100}...`;
+        }
+        if (progress.phase === 'verification') {
+          return `Verifying websites${progress.pass_number ? `, pass ${progress.pass_number}` : ''}...`;
+        }
+        return 'Status: ' + status;
+      }
+
+      function setResultsVisible(isVisible) {
+        emptyStateEl.classList.toggle('hidden', isVisible);
+        csvViewerEl.classList.toggle('hidden', !isVisible);
+      }
+
+      function updateDownloadState() {
+        downloadExcelBtn.disabled = currentVisibleRows.length <= 1;
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      let filterDebounce = null;
+      function debounceApplyFilters() {
+        if (filterDebounce) cancelAnimationFrame(filterDebounce);
+        filterDebounce = requestAnimationFrame(() => {
+          filterDebounce = null;
+          applyFilters();
+        });
+      }
+
+      function getDownloadFilename() {
+        const date = new Date();
+        const stamp = [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, '0'),
+          String(date.getDate()).padStart(2, '0'),
+        ].join('-');
+        return `xlverhuur_leadfinder-${stamp}.csv`;
+      }
+
+      function downloadVisibleRowsAsExcel() {
+        if (currentVisibleRows.length <= 1) return;
+
+        const csv = currentVisibleRows.map(row => row.map(value => {
+          let text = String(value ?? '');
+          if (/^[=+@\-\t\r]/.test(text)) text = "'" + text;
+          return '"' + text.replace(/"/g, '""') + '"';
+        }).join(',')).join('\r\n');
+        const blob = new Blob(['\ufeff', csv], {type: 'text/csv;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = getDownloadFilename();
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function getColumnIndex(name) {
+        return currentRows.length ? currentRows[0].indexOf(name) : -1;
+      }
+
+      function normalizeFilterValue(value) {
+        return String(value || '').trim();
+      }
+
+      function populateSelect(selectEl, values, defaultLabel) {
+        const selectedValue = selectEl.value;
+        let html = '<option value="">' + escapeHtml(defaultLabel) + '</option>';
+        for (let i = 0; i < values.length; i++) {
+          html += '<option value="' + escapeHtml(values[i]) + '">' + escapeHtml(values[i]) + '</option>';
+        }
+        selectEl.innerHTML = html;
+        selectEl.value = values.includes(selectedValue) ? selectedValue : '';
+      }
+
+      function syncFilterOptions() {
+        const bodyRows = currentRows.slice(1);
+        const categoryIndex = getColumnIndex('Service category');
+        const provinceIndex = getColumnIndex('Province');
+        const tierIndex = getColumnIndex('Website status tier');
+
+        const categories = [...new Set(bodyRows.map(row => normalizeFilterValue(row[categoryIndex])).filter(Boolean))].sort();
+        const provinces = [...new Set(bodyRows.map(row => normalizeFilterValue(row[provinceIndex])).filter(Boolean))].sort();
+        const tiers = [...new Set(bodyRows.map(row => normalizeFilterValue(row[tierIndex])).filter(Boolean))].sort();
+
+        populateSelect(filterCategoryEl, categories, 'All services');
+        populateSelect(filterProvinceEl, provinces, 'All provinces');
+        populateSelect(filterTierEl, tiers, 'All tiers');
+      }
+
+      function parseCsv(csvText) {
+        const rows = [];
+        let row = [];
+        let field = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < csvText.length; i++) {
+          const char = csvText[i];
+          const next = csvText[i + 1];
+
+          if (char === '"') {
+            if (inQuotes && next === '"') {
+              field += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            row.push(field);
+            field = '';
+          } else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (char === '\r' && next === '\n') i++;
+            row.push(field);
+            if (row.some(value => value !== '')) rows.push(row);
+            row = [];
+            field = '';
+          } else {
+            field += char;
+          }
+        }
+
+        row.push(field);
+        if (row.some(value => value !== '')) rows.push(row);
+        return rows;
+      }
+
+      function renderTable(rows, totalRows) {
+        currentVisibleRows = rows;
+
+        if (!rows.length || (totalRows > 0 && rows.length === 1)) {
+          currentVisibleRows = rows.length ? [rows[0]] : [];
+          setResultsVisible(currentRows.length > 1);
+          csvViewerEl.innerHTML = '<div class="empty-state"><div><strong>No matches</strong>Adjust or clear the current filters.</div></div>';
+          csvMetaEl.textContent = `0 of ${totalRows} leads`;
+          updateDownloadState();
+          return;
+        }
+
+        let html = '<table><thead><tr>';
+        for (let c = 0; c < rows[0].length; c++) {
+          html += '<th>' + escapeHtml(rows[0][c]) + '</th>';
+        }
+        html += '</tr></thead><tbody>';
+        for (let r = 1; r < rows.length; r++) {
+          html += '<tr>';
+          for (let c = 0; c < rows[r].length; c++) {
+            html += '<td>' + escapeHtml(rows[r][c]) + '</td>';
+          }
+          html += '</tr>';
+        }
+        html += '</tbody></table>';
+        csvViewerEl.innerHTML = html;
+
+        setResultsVisible(true);
+        const visibleRows = Math.max(rows.length - 1, 0);
+        csvMetaEl.textContent = visibleRows === totalRows
+          ? `${totalRows} leads | ${rows[0].length} columns`
+          : `${visibleRows} of ${totalRows} leads | ${rows[0].length} columns`;
+        updateDownloadState();
+      }
+
+      function applyFilters() {
+        if (currentRows.length <= 1) {
+          filtersEl.classList.add('hidden');
+          setResultsVisible(false);
+          csvMetaEl.textContent = currentRows.length ? 'No leads returned.' : 'No leads loaded.';
+          currentVisibleRows = [];
+          updateDownloadState();
+          return;
+        }
+
+        const searchValue = filterSearchEl.value.trim().toLowerCase();
+        const categoryValue = filterCategoryEl.value;
+        const provinceValue = filterProvinceEl.value;
+        const tierValue = filterTierEl.value;
+        const categoryIndex = getColumnIndex('Service category');
+        const provinceIndex = getColumnIndex('Province');
+        const tierIndex = getColumnIndex('Website status tier');
+        const bodyRows = currentRows.slice(1);
+        const totalRows = bodyRows.length;
+
+        const filteredRows = bodyRows.filter(row => {
+          const matchesSearch = !searchValue || row.some(value => String(value || '').toLowerCase().includes(searchValue));
+          const matchesCategory = !categoryValue || normalizeFilterValue(row[categoryIndex]) === categoryValue;
+          const matchesProvince = !provinceValue || normalizeFilterValue(row[provinceIndex]) === provinceValue;
+          const matchesTier = !tierValue || normalizeFilterValue(row[tierIndex]) === tierValue;
+          return matchesSearch && matchesCategory && matchesProvince && matchesTier;
+        });
+
+        filtersEl.classList.remove('hidden');
+        renderTable([currentRows[0], ...filteredRows], totalRows);
+      }
+
+      function renderRows(rows) {
+        currentRows = rows;
+
+        if (!rows.length) {
+          filtersEl.classList.add('hidden');
+          setResultsVisible(false);
+          csvMetaEl.textContent = 'No CSV rows returned.';
+          currentVisibleRows = [];
+          updateDownloadState();
+          return;
+        }
+
+        syncFilterOptions();
+        applyFilters();
+      }
+
+      function renderLeads(leads) {
+        const rows = [
+          columns,
+          ...leads.map(lead => columns.map(column => lead[column] || '')),
+        ];
+        renderRows(rows);
+      }
+
+      function renderCsv(csvText) {
+        renderRows(parseCsv(csvText));
+      }
+
+      function formatDate(value) {
+        if (!value) return 'Unknown date';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString();
+      }
+
+      function formatTime(value) {
+        if (!value) return 'Unknown time';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      }
+
+      function getRunDate(run) {
+        const value = run.updated_at || run.created_at;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+
+      function getDayKey(date) {
+        if (!date) return 'unknown';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function getDayLabel(date) {
+        if (!date) return 'Unknown date';
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+        const key = getDayKey(date);
+
+        if (key === getDayKey(today)) return 'Today';
+        if (key === getDayKey(yesterday)) return 'Yesterday';
+        return date.toLocaleDateString([], {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      }
+
+      function groupRunsByDay(runs) {
+        const groups = [];
+        const groupsByKey = new Map();
+
+        runs.forEach(run => {
+          const date = getRunDate(run);
+          const key = getDayKey(date);
+          if (!groupsByKey.has(key)) {
+            const group = {key, date, label: getDayLabel(date), runs: []};
+            groupsByKey.set(key, group);
+            groups.push(group);
+          }
+          groupsByKey.get(key).runs.push(run);
+        });
+
+        return groups;
+      }
+
+      function createRunItemHtml(run) {
+        return '<li class="run-item">'
+          + '<div class="meta">'
+          + '<strong>' + (run.lead_count || 0) + ' leads</strong>'
+          + '<span class="muted">' + escapeHtml(formatTime(run.updated_at || run.created_at)) + ' | ' + escapeHtml(run.id) + '</span>'
+          + '</div>'
+          + '<button class="btn btn-icon" type="button" title="View run" aria-label="View run ' + escapeHtml(run.id) + '" data-run-id="' + escapeHtml(run.id) + '">'
+          + '<i class="icon hgi-stroke hgi-view" aria-hidden="true"></i>'
+          + '</button>'
+          + '</li>';
+      }
+
+      function renderResult(result) {
+        const leads = result && Array.isArray(result.leads) ? result.leads : null;
+        const csvText = result && typeof result.csv === 'string'
+          ? result.csv
+          : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
+
+        if (leads) {
+          renderLeads(leads);
+        } else {
+          renderCsv(csvText);
+        }
+      }
+
+      async function loadRun(taskId) {
+        const resp = await fetch('/status/' + taskId);
+        if (!resp.ok) throw new Error('Failed to load previous run');
+        const data = await resp.json();
+        if (!data.result) throw new Error(data.error || 'Previous run has no result');
+        setStatus('Loaded previous run.', 'success');
+        renderResult(data.result);
+      }
+
+      async function loadHistory() {
+        historyEl.innerHTML = '<li class="muted">Loading previous runs...</li>';
+        refreshHistoryBtn.disabled = true;
+        try {
+          const resp = await fetch('/history?limit=20');
+          if (!resp.ok) throw new Error('Failed to load previous runs');
+          const data = await resp.json();
+          const runs = Array.isArray(data.runs) ? data.runs : [];
+          historyEl.innerHTML = '';
+          if (!runs.length) {
+            historyEl.innerHTML = '<li class="muted">No completed runs yet.</li>';
+            return;
+          }
+
+          const groups = groupRunsByDay(runs);
+          let html = '';
+          for (let g = 0; g < groups.length; g++) {
+            const group = groups[g];
+            const isOpen = g === 0;
+            const runsHtml = group.runs.map(run => createRunItemHtml(run)).join('');
+            html += '<li class="history-folder">'
+              + '<button class="folder-toggle" type="button" aria-expanded="' + isOpen + '">'
+              + '<span class="folder-label">'
+              + '<i class="icon hgi-stroke ' + (isOpen ? 'hgi-folder-open' : 'hgi-folder-01') + '" aria-hidden="true"></i>'
+              + escapeHtml(group.label)
+              + '</span>'
+              + '<span class="folder-count">' + group.runs.length + (group.runs.length === 1 ? ' run' : ' runs') + '</span>'
+              + '</button>'
+              + '<ul class="folder-runs' + (isOpen ? '' : ' is-collapsed') + '">'
+              + runsHtml
+              + '</ul>'
+              + '</li>';
+          }
+          historyEl.innerHTML = html;
+
+          historyEl.querySelectorAll('.folder-toggle').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+              const runList = toggle.nextElementSibling;
+              const nextOpen = runList.classList.toggle('is-collapsed');
+              const expanded = !nextOpen;
+              toggle.setAttribute('aria-expanded', String(expanded));
+              toggle.querySelector('.icon').className = 'icon hgi-stroke ' + (expanded ? 'hgi-folder-open' : 'hgi-folder-01');
+            });
+          });
+
+          historyEl.querySelectorAll('.run-item .btn-icon').forEach(loadBtn => {
+            loadBtn.addEventListener('click', async () => {
+              const runId = loadBtn.dataset.runId;
+              loadBtn.disabled = true;
+              try {
+                await loadRun(runId);
+              } catch (err) {
+                setStatus('Failed to load previous run: ' + err.message, 'error');
+              } finally {
+                loadBtn.disabled = false;
+              }
+            });
+          });
+        } catch (err) {
+          historyEl.innerHTML = '';
+          const li = document.createElement('li');
+          li.className = 'muted';
+          li.textContent = 'Failed to load previous runs: ' + err.message;
+          historyEl.appendChild(li);
+        } finally {
+          refreshHistoryBtn.disabled = false;
+        }
+      }
+
+      refreshHistoryBtn.addEventListener('click', loadHistory);
+      themeToggleBtn.addEventListener('click', () => {
+        applyTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark');
+      });
+      perfToggle.addEventListener('change', () => {
+        applyPerfMode(perfToggle.checked);
+      });
+      installAppBtn.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        updateInstallButton();
+        if (choice && choice.outcome === 'accepted') {
+          setStatus('xlverhuur_leadfinder was installed.', 'success');
+        }
+      });
+      window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        updateInstallButton();
+      });
+      window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        updateInstallButton();
+        setStatus('xlverhuur_leadfinder was installed.', 'success');
+      });
+      filterSearchEl.addEventListener('input', debounceApplyFilters);
+      [filterCategoryEl, filterProvinceEl, filterTierEl].forEach(control => {
+        control.addEventListener('change', applyFilters);
+      });
+      resetFiltersBtn.addEventListener('click', () => {
+        filterSearchEl.value = '';
+        filterCategoryEl.value = '';
+        filterProvinceEl.value = '';
+        filterTierEl.value = '';
+        applyFilters();
+      });
+      downloadExcelBtn.addEventListener('click', downloadVisibleRowsAsExcel);
+
+      applyTheme(getCurrentTheme());
+      try {
+        if (localStorage.getItem('marketpost-perf') === 'low-end') {
+          applyPerfMode(true);
+        }
+      } catch (err) {}
+      registerServiceWorker();
+      updateInstallButton();
+      btn.addEventListener('click', async () => {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+        pollInFlight = false;
+        pollErrorCount = 0;
+        btn.disabled = true;
+        setStatus('Starting job...', 'running');
+        csvMetaEl.textContent = 'Preparing new run.';
+        csvViewerEl.innerHTML = '';
+        currentRows = [];
+        currentVisibleRows = [];
+        updateDownloadState();
+        filtersEl.classList.add('hidden');
+        requestNotificationPermission();
+        filterSearchEl.value = '';
+        filterCategoryEl.value = '';
+        filterProvinceEl.value = '';
+        filterTierEl.value = '';
+        setResultsVisible(false);
+
+        try {
+          const query = document.getElementById('searchQuery').value.trim();
+          if (!query) throw new Error('Enter a search term, for example Kraan huren.');
+          const resp = await fetch('/generate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({query})});
+          if (!resp.ok) throw new Error('Failed to start job');
+          const data = await resp.json();
+          const taskId = data.task_id;
+          setStatus('Generating leads...', 'running');
+
+          pollInterval = setInterval(async () => {
+            if (pollInFlight) return;
+            pollInFlight = true;
+
+            try {
+              const s = await fetch('/status/' + taskId);
+              if (!s.ok) {
+                let errorMessage = 'Temporary status check failed.';
+                try {
+                  const errorPayload = await s.json();
+                  errorMessage = errorPayload.error || errorMessage;
+                } catch (jsonErr) {
+                  // The next poll may still succeed; keep the message generic.
+                }
+                throw new Error(errorMessage);
+              }
+
+              const j = await s.json();
+              pollErrorCount = 0;
+              const status = String(j.status || '').trim().toLowerCase();
+              setStatus(getTaskStatusMessage(j), terminalStatuses.has(status) ? (status === 'done' || status === 'completed' ? 'success' : 'error') : 'running');
+
+              if (terminalStatuses.has(status)) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                if (status === 'done' || status === 'completed' || status === 'incomplete') {
+                  if (!j.result) throw new Error('Task completed without a result.');
+                  renderResult(j.result);
+                  if (status === 'incomplete' || j.result.minimum_reached === false) {
+                    const leadCount = Array.isArray(j.result.leads) ? j.result.leads.length : 0;
+                    setStatus(`Partial: ${leadCount} leads collected. ${j.result.stopped_before_minimum_reason || 'Target was not reached.'}`, 'success');
+                    showNotification('Lead Generation Partial', `${leadCount} leads collected. ${j.result.stopped_before_minimum_reason || 'Target was not reached.'}`);
+                  } else {
+                    const leadCount = Array.isArray(j.result.leads) ? j.result.leads.length : 100;
+                    setStatus(`Done with ${leadCount} leads.`, 'success');
+                    showNotification('Lead Generation Complete', `${leadCount} leads ready.`);
+                  }
+                  loadHistory();
+                } else {
+                  const errorMsg = j.error || ('Task finished with status: ' + status);
+                  setStatus(errorMsg, 'error');
+                  showNotification('Lead Generation Failed', errorMsg);
+                }
+                btn.disabled = false;
+              }
+            } catch (err) {
+              pollErrorCount += 1;
+              if (pollErrorCount < 30) {
+                setStatus((err.message || 'Status check failed.') + ' Retrying...', 'running');
+                return;
+              }
+
+              clearInterval(pollInterval);
+              pollInterval = null;
+              setStatus(err.message || 'Polling failed.', 'error');
+              btn.disabled = false;
+            } finally {
+              pollInFlight = false;
+            }
+          }, 2000);
+        } catch (err) {
+          setStatus('Failed to start: ' + err.message, 'error');
+          btn.disabled = false;
+        }
+      });
+
+      loadHistory();
+    </script>
+  </body>
+</html>

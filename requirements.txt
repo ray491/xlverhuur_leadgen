@@ -1,0 +1,5 @@
+exa-py
+flask
+sqlalchemy
+flask_sqlalchemy
+psycopg2-binary
