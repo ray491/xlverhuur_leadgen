@@ -20,9 +20,6 @@
         if (savedTheme === 'dark') {
           document.documentElement.dataset.theme = 'dark';
         }
-        if (localStorage.getItem('marketpost-perf') === 'low-end') {
-          document.documentElement.classList.add('low-end');
-        }
       } catch (err) {
         document.documentElement.dataset.theme = '';
       }
@@ -497,100 +494,102 @@
         display: none;
       }
 
-      .perf-slider {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        user-select: none;
-        -webkit-user-select: none;
+      .toolbar-search {
+        width: 220px;
+        flex: 0 1 220px;
       }
 
-      .perf-slider-input {
+      .toolbar-search input {
+        min-height: 40px;
+      }
+
+      .lead-search-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+      }
+
+      .app.no-sheet .results-panel {
+        order: -1;
+        border: 0;
+        background: transparent;
+      }
+
+      .app.no-sheet .results-panel > .panel-head {
+        display: none;
+      }
+
+      .app.no-sheet .table-wrap {
+        background: transparent;
+      }
+
+      .search-welcome {
+        width: min(100%, 620px);
+      }
+
+      .search-welcome h2 {
+        color: var(--text);
+        font-size: clamp(26px, 4vw, 36px);
+        line-height: 1.2;
+        letter-spacing: -0.025em;
+        margin: 0 0 14px;
+      }
+
+      .search-welcome p {
+        margin: 0 auto 24px;
+        max-width: 48ch;
+        line-height: 1.6;
+      }
+
+      .search-welcome .lead-search-form {
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+      }
+
+      .search-welcome .toolbar-search {
+        flex: 1;
+        width: auto;
+      }
+
+      .search-welcome input {
+        min-height: 48px;
+        border-color: transparent;
+        font-size: 16px;
+      }
+
+      .search-welcome .btn {
+        min-height: 48px;
+      }
+
+      .search-welcome .search-example {
+        margin: 18px auto 0;
+        font-size: 13px;
+      }
+
+      @media (max-width: 520px) {
+        #toolbarSearchSlot { width: 100%; }
+        .lead-search-form { flex-direction: column; align-items: stretch; }
+        .lead-search-form .toolbar-search { width: 100%; flex: auto; }
+        .search-welcome .lead-search-form { padding: 10px; }
+        #emptyState { padding: 24px 12px; min-height: 55vh; }
+      }
+
+      .visually-hidden {
         position: absolute;
         width: 1px;
         height: 1px;
+        padding: 0;
+        margin: -1px;
         overflow: hidden;
-        clip: rect(0 0 0 0);
         clip-path: inset(50%);
         white-space: nowrap;
+        border: 0;
       }
 
-      .perf-slider-track {
-        position: relative;
-        width: 40px;
-        height: 22px;
-        border-radius: 11px;
-        background: var(--line);
-        transition: background 200ms ease;
-        flex-shrink: 0;
-      }
-
-      .perf-slider-thumb {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background: #fff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        transition: transform 200ms ease;
-      }
-
-      .perf-slider-input:checked + .perf-slider-track {
-        background: var(--blue);
-      }
-
-      .perf-slider-input:checked + .perf-slider-track .perf-slider-thumb {
-        transform: translateX(18px);
-      }
-
-      .perf-slider-input:focus-visible + .perf-slider-track {
-        outline: 3px solid rgba(0, 113, 227, 0.28);
-        outline-offset: 2px;
-      }
-
-      .perf-slider-label {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 600;
-        white-space: nowrap;
-      }
-
-      html.low-end .toolbar {
-        background: var(--header-bg);
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        contain: layout style;
-      }
-
-      html.low-end .btn {
-        transition: background 120ms ease, opacity 120ms ease;
-        will-change: auto;
-      }
-
-      html.low-end .btn:hover:not(:disabled) {
-        transform: none;
-      }
-
-      html.low-end th {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-        contain: layout style;
-      }
-
-      html.low-end tbody tr {
-        content-visibility: auto;
-        contain-intrinsic-size: auto 44px;
-      }
-
-      html.low-end #csvViewer {
-        contain: layout style;
-        content-visibility: auto;
-      }
-
-      @media (max-width: 860px) {
+      @media (max-width: 1100px) {
         .app {
           padding: 12px;
         }
@@ -637,8 +636,10 @@
           flex-direction: column;
         }
 
-        .actions .btn {
+        .actions .btn,
+        .actions .toolbar-search {
           width: 100%;
+          flex: 0 0 auto;
         }
 
         .panel-head {
@@ -671,7 +672,7 @@
     </style>
   </head>
   <body>
-    <main class="app">
+    <main class="app no-sheet">
       <header class="toolbar">
         <div class="toolbar-title">
           <h1>xlverhuur_leadfinder</h1>
@@ -686,24 +687,7 @@
             <i id="themeToggleIcon" class="icon hgi-stroke hgi-dark-mode" aria-hidden="true"></i>
             <span id="themeToggleText">Dark Mode</span>
           </button>
-          <label class="perf-slider" title="Toggle low-end mode for slower devices">
-            <span class="perf-slider-label" id="perfLabelLeft">Normal</span>
-            <input type="checkbox" id="perfToggle" class="perf-slider-input" />
-            <span class="perf-slider-track"><span class="perf-slider-thumb"></span></span>
-            <span class="perf-slider-label" id="perfLabelRight">Low-end</span>
-          </label>
-          <button id="installApp" class="btn hidden" type="button">
-            <i class="icon hgi-stroke hgi-download-04" aria-hidden="true"></i>
-            Install
-          </button>
-          <div class="field">
-            <label for="searchQuery">Search term</label>
-            <input id="searchQuery" type="search" placeholder="Kraan huren" maxlength="500" required />
-          </div>
-          <button id="gen" class="btn btn-primary" type="button">
-            <i class="icon hgi-stroke hgi-play" aria-hidden="true"></i>
-            Find Contacts
-          </button>
+          <div id="toolbarSearchSlot"></div>
         </div>
       </header>
 
@@ -756,9 +740,22 @@
           </div>
           <div class="table-wrap">
             <div id="emptyState" class="empty-state">
-              <div>
-                <strong>No results yet</strong>
-                Generate leads or open a previous run.
+              <div class="search-welcome">
+                <h2>Who are you looking for?</h2>
+                <p id="searchHint">Start with a service or business type. Add a city or region to narrow your search.</p>
+                <div id="emptySearchSlot">
+                  <form id="leadSearchForm" class="lead-search-form" role="search" aria-label="Find business contacts">
+          <div class="field toolbar-search">
+            <label class="visually-hidden" for="searchQuery">Search term</label>
+            <input id="searchQuery" aria-describedby="searchHint" type="search" placeholder="e.g. Kraan huren Utrecht" maxlength="500" required />
+          </div>
+          <button id="gen" class="btn btn-primary" type="submit">
+            <i class="icon hgi-stroke hgi-play" aria-hidden="true"></i>
+            Find Contacts
+          </button>
+                  </form>
+                </div>
+                <p class="search-example">Try “Kraan huren Utrecht” or “Transportbedrijf Rotterdam”.<br>Press Enter to find 30 business leads.</p>
               </div>
             </div>
             <div id="csvViewer" class="hidden"></div>
@@ -769,14 +766,11 @@
 
     <script>
       const btn = document.getElementById('gen');
+      const searchForm = document.getElementById('leadSearchForm');
       const refreshHistoryBtn = document.getElementById('refreshHistory');
       const themeToggleBtn = document.getElementById('themeToggle');
       const themeToggleIconEl = document.getElementById('themeToggleIcon');
       const themeToggleTextEl = document.getElementById('themeToggleText');
-      const perfToggle = document.getElementById('perfToggle');
-      const perfLabelLeft = document.getElementById('perfLabelLeft');
-      const perfLabelRight = document.getElementById('perfLabelRight');
-      const installAppBtn = document.getElementById('installApp');
       const statusEl = document.getElementById('status');
       const historyEl = document.getElementById('history');
       const csvMetaEl = document.getElementById('csvMeta');
@@ -794,7 +788,6 @@
       let pollErrorCount = 0;
       let currentRows = [];
       let currentVisibleRows = [];
-      let deferredInstallPrompt = null;
       const terminalStatuses = new Set(['done', 'completed', 'incomplete', 'error', 'failed', 'cancelled']);
       const columns = ['Business name', 'Public email', 'Public phone', 'Address'];
 
@@ -815,20 +808,6 @@
         return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
       }
 
-      function applyPerfMode(lowEnd) {
-        document.documentElement.classList.toggle('low-end', lowEnd);
-        perfToggle.checked = lowEnd;
-        perfLabelLeft.style.color = lowEnd ? 'var(--muted)' : 'var(--text)';
-        perfLabelRight.style.color = lowEnd ? 'var(--text)' : 'var(--muted)';
-        try {
-          localStorage.setItem('marketpost-perf', lowEnd ? 'low-end' : 'normal');
-        } catch (err) {}
-      }
-
-      function isStandaloneApp() {
-        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      }
-
       function requestNotificationPermission() {
         if (!('Notification' in window)) return Promise.resolve('denied');
         if (Notification.permission === 'granted' || Notification.permission === 'denied') {
@@ -844,10 +823,6 @@
         } else {
           new Notification(title, { body, icon: '/icons/app-icon.svg' });
         }
-      }
-
-      function updateInstallButton() {
-        installAppBtn.classList.toggle('hidden', isStandaloneApp() || !deferredInstallPrompt);
       }
 
       function registerServiceWorker() {
@@ -874,12 +849,18 @@
 
         if (status === 'done' || status === 'completed') return 'Search complete.';
         if (progress.phase === 'generation' || ['pending', 'generating', 'running'].includes(status)) {
-          return 'Searching web pages for up to 15 companies…';
+          return 'Searching web pages for 30 companies…';
         }
         return 'Status: ' + status;
       }
 
       function setResultsVisible(isVisible) {
+        document.querySelector('.app').classList.toggle('no-sheet', !isVisible);
+        const slot = document.getElementById(isVisible ? 'toolbarSearchSlot' : 'emptySearchSlot');
+        if (searchForm.parentElement !== slot) slot.appendChild(searchForm);
+        const searchInput = document.getElementById('searchQuery');
+        if (isVisible) searchInput.removeAttribute('aria-describedby');
+        else searchInput.setAttribute('aria-describedby', 'searchHint');
         emptyStateEl.classList.toggle('hidden', isVisible);
         csvViewerEl.classList.toggle('hidden', !isVisible);
       }
@@ -1292,29 +1273,6 @@
       themeToggleBtn.addEventListener('click', () => {
         applyTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark');
       });
-      perfToggle.addEventListener('change', () => {
-        applyPerfMode(perfToggle.checked);
-      });
-      installAppBtn.addEventListener('click', async () => {
-        if (!deferredInstallPrompt) return;
-        deferredInstallPrompt.prompt();
-        const choice = await deferredInstallPrompt.userChoice;
-        deferredInstallPrompt = null;
-        updateInstallButton();
-        if (choice && choice.outcome === 'accepted') {
-          setStatus('xlverhuur_leadfinder was installed.', 'success');
-        }
-      });
-      window.addEventListener('beforeinstallprompt', event => {
-        event.preventDefault();
-        deferredInstallPrompt = event;
-        updateInstallButton();
-      });
-      window.addEventListener('appinstalled', () => {
-        deferredInstallPrompt = null;
-        updateInstallButton();
-        setStatus('xlverhuur_leadfinder was installed.', 'success');
-      });
       filterSearchEl.addEventListener('input', debounceApplyFilters);
       [filterCategoryEl, filterProvinceEl, filterTierEl].forEach(control => {
         control.addEventListener('change', applyFilters);
@@ -1329,14 +1287,10 @@
       downloadExcelBtn.addEventListener('click', downloadVisibleRowsAsExcel);
 
       applyTheme(getCurrentTheme());
-      try {
-        if (localStorage.getItem('marketpost-perf') === 'low-end') {
-          applyPerfMode(true);
-        }
-      } catch (err) {}
       registerServiceWorker();
-      updateInstallButton();
-      btn.addEventListener('click', async () => {
+      searchForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (btn.disabled) return;
         if (pollInterval) {
           clearInterval(pollInterval);
           pollInterval = null;

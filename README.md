@@ -15,7 +15,7 @@ The search provider is Exa. This implementation does **not** directly fetch Goog
 
 Install `requirements.txt`, configure `EXA_API_KEY` and `DATABASE_URL` (Postgres), then run `python app.py`. The application creates its task table on startup. Completed searches are saved in the database.
 
-Each search creates exactly one Exa Agent run requesting at most 15 businesses. Fewer results (including zero) are valid. The old quota/batch environment variables are ignored.
+Each search creates exactly one Exa Agent run requesting exactly 30 unique businesses. Only results with 30 unique businesses are marked complete. Shorter results (including zero) are saved as incomplete and remain available for review and CSV export; no businesses are fabricated and no automatic extra paid runs are started. The old quota/batch environment variables are ignored.
 
 The app saves the Exa run ID before returning from `/generate`. Each `/status` request checks that same run once and saves its result when complete. No daemon thread or hour-long HTTP request is required. Failed status checks never launch replacement runs.
 
