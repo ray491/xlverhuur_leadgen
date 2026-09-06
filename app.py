@@ -637,6 +637,7 @@ def task_to_history_item(task):
         "id": task.id,
         "status": task.status,
         "lead_count": lead_count,
+        "search_query": result.get("search_query", ""),
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "updated_at": task.updated_at.isoformat() if task.updated_at else None,
     }

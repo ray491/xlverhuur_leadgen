@@ -1147,6 +1147,7 @@
       function createRunItemHtml(run) {
         return '<li class="run-item">'
           + '<div class="meta">'
+          + '<span class="muted">' + escapeHtml(run.search_query || 'Search query unavailable') + '</span>'
           + '<strong>' + (terminalStatuses.has(run.status) ? (run.lead_count || 0) + ' leads' : 'Search in progress') + '</strong>'
           + '<span class="muted">' + escapeHtml(formatTime(run.updated_at || run.created_at)) + ' | ' + escapeHtml(run.id) + '</span>'
           + '</div>'
@@ -1162,11 +1163,15 @@
           ? result.csv
           : (typeof result === 'string' ? result : JSON.stringify(result, null, 2));
 
-        if (leads) {
-          renderLeads(leads);
-        } else {
-          renderCsv(csvText);
+        const rows = leads
+          ? [columns, ...leads.map(lead => columns.map(column => lead[column] || ''))]
+          : parseCsv(csvText);
+        if (rows.length && !rows[0].includes('Search query')) {
+          const searchQuery = result && result.search_query || 'Unavailable';
+          rows[0] = [...rows[0], 'Search query'];
+          for (let r = 1; r < rows.length; r++) rows[r] = [...rows[r], searchQuery];
         }
+        renderRows(rows);
       }
 
       async function loadRun(taskId) {
