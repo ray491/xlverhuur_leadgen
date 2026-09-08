@@ -1,0 +1,12 @@
+name: xlverhuur_leadgen
+
+services:
+  xlverhuur_leadgen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xlverhuur_leadgen
+    ports:
+      - "4096:4096"
+      - "1455:1455"
+    restart: unless-stopped

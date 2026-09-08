@@ -682,6 +682,10 @@ def get_history_tasks_with_retry(limit, attempts=3, delay=0.25):
 def generate():
     payload = request.get_json(silent=True)
     search_query = payload.get("query") if isinstance(payload, dict) else None
+    return start_search(search_query)
+
+
+def start_search(search_query):
     if not isinstance(search_query, str) or not search_query.strip():
         return jsonify({"error": "Enter a search term, for example Kraan huren."}), 400
     search_query = search_query.strip()
@@ -717,6 +721,10 @@ def generate():
 @app.route('/history', methods=['GET'])
 def history():
     limit = request.args.get("limit", default=20, type=int)
+    return list_search_history(limit)
+
+
+def list_search_history(limit=20):
     limit = max(1, min(limit, 100))
     try:
         tasks = get_history_tasks_with_retry(limit)
@@ -769,6 +777,11 @@ def service_worker():
 @app.route('/icons/<path:filename>')
 def icons(filename):
     return send_from_directory('icons', filename)
+
+
+from mcp_endpoint import register_mcp
+
+register_mcp(app, lambda query: start_search(query), status, list_search_history)
 
 
 if __name__ == '__main__':
